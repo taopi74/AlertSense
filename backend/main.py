@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,6 +26,8 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+IS_VERCEL = bool(os.environ.get("VERCEL"))
+
 app = FastAPI(
     title="AlertSense",
     description="AI incident triage agent — Elastic MCP + Gemini",
@@ -39,8 +42,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+router = APIRouter()
 
-@app.get("/api/health", response_model=HealthResponse)
+
+@router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     mode = "demo" if settings.use_demo else "elastic"
     return HealthResponse(
@@ -51,7 +56,7 @@ async def health() -> HealthResponse:
     )
 
 
-@app.get("/api/config", response_model=ConfigResponse)
+@router.get("/config", response_model=ConfigResponse)
 async def config() -> ConfigResponse:
     return ConfigResponse(
         mode="demo" if settings.use_demo else "elastic",
@@ -62,7 +67,7 @@ async def config() -> ConfigResponse:
     )
 
 
-@app.post("/api/investigate", response_model=InvestigateResponse)
+@router.post("/investigate", response_model=InvestigateResponse)
 async def investigate(request: InvestigateRequest) -> InvestigateResponse:
     try:
         return await agent.investigate(request)
@@ -71,9 +76,14 @@ async def investigate(request: InvestigateRequest) -> InvestigateResponse:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+# Standard paths used locally and in production
+app.include_router(router, prefix="/api")
+# Vercel Services may forward stripped paths (/health instead of /api/health)
+app.include_router(router)
+
+
 # Serve built frontend locally (not on Vercel — static files served separately)
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
-IS_VERCEL = bool(__import__("os").environ.get("VERCEL"))
 
 if FRONTEND_DIST.exists() and not IS_VERCEL:
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")

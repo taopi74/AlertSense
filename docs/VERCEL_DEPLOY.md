@@ -1,18 +1,29 @@
 # Deploy AlertSense to Vercel
 
-## Why `experimentalServices` fails
+## Vercel UI — what to click
 
-Cursor/Vercel experimental config uses:
+### Root Directory modal
+Select **`AlertSense` (root)** — the top option with the repo name.
+
+Do **NOT** select `frontend`, `backend`, or `api` alone.
+
+### Framework
+When Vercel shows **Services** with frontend + backend, that is correct.
+Click **Refresh** after pushing the latest `vercel.json`.
+
+---
+
+## Why `/_/backend` fails
+
+Vercel may auto-suggest:
 
 ```json
 "backend": { "routePrefix": "/_/backend" }
 ```
 
-AlertSense frontend calls **`/api/health`**, **`/api/investigate`** — not `/_/backend`.
+AlertSense frontend calls **`/api/health`** and **`/api/investigate`**.
 
-That mismatch causes **404 / deployment errors**.
-
-Use the root **`vercel.json`** in this repo instead (already configured).
+Backend must use **`"routePrefix": "/api"`** (see root `vercel.json`).
 
 ---
 
@@ -21,20 +32,20 @@ Use the root **`vercel.json`** in this repo instead (already configured).
 ### 1. Push to GitHub
 
 ```bash
-git add .
-git commit -m "Add Vercel deployment config"
+git add vercel.json api/ requirements.txt
+git commit -m "Fix Vercel experimentalServices routing for /api"
 git push
 ```
 
 ### 2. Import on Vercel
 
 1. [vercel.com](https://vercel.com) → **Add New Project**
-2. Import your GitHub repo
-3. **Root Directory:** project root (`Google` folder)
-4. Framework: **Other** (vercel.json handles build)
-5. Do **NOT** use experimentalServices backend prefix
+2. Import GitHub repo **AlertSense**
+3. **Root Directory:** `AlertSense` (repo root) → **Continue**
+4. Vercel should detect **Services** (Vite frontend + FastAPI backend)
+5. Click **Refresh** if it asks for `vercel.json`
 
-### 3. Environment Variables (Vercel Dashboard → Settings → Environment Variables)
+### 3. Environment Variables (Settings → Environment Variables)
 
 | Variable | Value |
 |----------|-------|
@@ -50,10 +61,16 @@ git push
 
 ### 4. Deploy
 
-Click **Deploy**. Your URL will be:
+Your URL:
 
 ```
 https://your-project.vercel.app
+```
+
+Test:
+
+```
+https://your-project.vercel.app/api/health
 ```
 
 ---
@@ -61,8 +78,8 @@ https://your-project.vercel.app
 ## Architecture on Vercel
 
 ```
-https://your-app.vercel.app/          → React UI (static)
-https://your-app.vercel.app/api/*     → FastAPI (Python serverless)
+/              → Vite React UI (frontend service)
+/api/*         → FastAPI via api/index.py (backend service)
 ```
 
 ---
@@ -71,8 +88,8 @@ https://your-app.vercel.app/api/*     → FastAPI (Python serverless)
 
 | Item | Note |
 |------|------|
-| **Function timeout** | `/api/investigate` needs ~30s — set `maxDuration: 60` (Pro plan). Hobby = 10s may timeout |
-| **Cold start** | First request may be slow |
+| **Function timeout** | `/api/investigate` ~30s — needs `maxDuration: 60` (Pro). Hobby = 10s may fail |
+| **Cold start** | First request can be slow |
 | **Hackathon** | Cloud Run is also valid for hosted URL |
 
 ---
@@ -81,16 +98,15 @@ https://your-app.vercel.app/api/*     → FastAPI (Python serverless)
 
 | Error | Fix |
 |-------|-----|
-| 404 on `/api/investigate` | Remove experimentalServices; use repo `vercel.json` |
-| Module not found `backend` | Ensure `api/index.py` exists at repo root |
-| Build fails | Check `frontend/package.json` and Node 20 |
-| Investigate timeout | Upgrade Vercel Pro or use Cloud Run |
+| "vercel.json required" | Push latest `vercel.json`, click **Refresh** |
+| Wrong root selected | Use repo root, not `frontend/` or `backend/` |
+| 404 on `/api/*` | Backend `routePrefix` must be `/api`, not `/_/backend` |
+| Module not found `backend` | Keep `api/index.py` at repo root |
+| Investigate timeout | Vercel Pro or Cloud Run |
 
 ---
 
-## Alternative: Cloud Run (recommended for hackathon)
-
-If Vercel times out, deploy with Docker:
+## Alternative: Cloud Run
 
 ```bash
 gcloud run deploy alertsense --source . --region us-central1 --allow-unauthenticated
