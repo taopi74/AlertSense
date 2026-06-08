@@ -71,9 +71,11 @@ async def investigate(request: InvestigateRequest) -> InvestigateResponse:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-# Serve built frontend in production
+# Serve built frontend locally (not on Vercel — static files served separately)
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
-if FRONTEND_DIST.exists():
+IS_VERCEL = bool(__import__("os").environ.get("VERCEL"))
+
+if FRONTEND_DIST.exists() and not IS_VERCEL:
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
 
     @app.get("/")

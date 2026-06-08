@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "pip install -r requirements.txt",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "api/**/*.py": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  }
+}
