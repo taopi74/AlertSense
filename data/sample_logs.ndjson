@@ -1,0 +1,10 @@
+{"timestamp":"2026-06-08T10:00:00Z","service":"checkout-api","level":"INFO","message":"Checkout session started session_id=chk_8842","trace_id":"tr_a001"}
+{"timestamp":"2026-06-08T10:05:00Z","service":"payment-api","level":"WARN","message":"Payment gateway latency p99=4200ms threshold=2000ms","trace_id":"tr_b002"}
+{"timestamp":"2026-06-08T10:10:00Z","service":"payment-api","level":"ERROR","message":"Timeout calling stripe-api: Read timed out after 30s","trace_id":"tr_b003"}
+{"timestamp":"2026-06-08T10:10:05Z","service":"checkout-api","level":"ERROR","message":"Payment failed for session_id=chk_8842 reason=upstream_timeout","trace_id":"tr_b003"}
+{"timestamp":"2026-06-08T10:10:08Z","service":"checkout-api","level":"ERROR","message":"Payment failed for session_id=chk_9103 reason=upstream_timeout","trace_id":"tr_b004"}
+{"timestamp":"2026-06-08T10:10:12Z","service":"frontend","level":"ERROR","message":"User reported slow checkout - cart_abandon event cart_id=c_4421","trace_id":"tr_c006"}
+{"timestamp":"2026-06-08T10:10:15Z","service":"payment-api","level":"ERROR","message":"Circuit breaker OPEN for stripe-api failures=12 window=5m","trace_id":"tr_b007"}
+{"timestamp":"2026-06-08T10:05:30Z","service":"deploy-bot","level":"INFO","message":"Deployed payment-api v2.14.0 to production","trace_id":"tr_d008"}
+{"timestamp":"2026-06-08T10:11:00Z","service":"payment-api","level":"ERROR","message":"stripe-api connection pool exhausted max=50 active=50","trace_id":"tr_b009"}
+{"timestamp":"2026-06-08T10:12:00Z","service":"checkout-api","level":"WARN","message":"Checkout completion rate dropped 34% vs baseline","trace_id":"tr_a010"}
