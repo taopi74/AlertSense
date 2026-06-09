@@ -70,6 +70,7 @@ class HealthResponse(BaseModel):
     version: str = "1.0.0"
     python_version: str | None = None
     import_error: str | None = None
+    adk_version: str | None = None
 
 
 class ConfigResponse(BaseModel):
