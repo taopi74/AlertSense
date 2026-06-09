@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 class AgentBuilderService:
     """Runs Google ADK agent with Gemini + Elastic MCP (hackathon requirement)."""
 
+    def __init__(self) -> None:
         self._available = False
         self.import_error = None
         try:
