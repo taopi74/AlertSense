@@ -7,6 +7,7 @@ import logging
 import uuid
 from typing import Any
 
+from backend.agent.adk_compat import check_adk_available, load_adk_mcp
 from backend.config import settings
 
 logger = logging.getLogger(__name__)
@@ -16,16 +17,9 @@ class AgentBuilderService:
     """Runs Google ADK agent with Gemini + Elastic MCP (hackathon requirement)."""
 
     def __init__(self) -> None:
-        self._available = False
-        self.import_error = None
-        try:
-            from google.adk.agents import Agent  # noqa: F401
-            from google.adk.tools.mcp_tool import McpToolset  # noqa: F401
-
-            self._available = True
-        except Exception as exc:
-            self.import_error = f"{type(exc).__name__}: {str(exc)}"
-            logger.warning("google-adk import failed: %s", exc)
+        self._available, self.import_error = check_adk_available()
+        if not self._available:
+            logger.warning("google-adk import failed: %s", self.import_error)
 
     @property
     def configured(self) -> bool:
@@ -54,13 +48,9 @@ class AgentBuilderService:
 
     async def _run_adk_analysis(self, query: str, log_summary: str) -> str | None:
         try:
-            from google.adk.agents import Agent
-            from google.adk.runners import Runner
-            from google.adk.sessions import InMemorySessionService
-            from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
-            from google.genai import types
+            Agent, Runner, InMemorySessionService, types, McpToolsetCls, StreamableHTTPConnectionParams = load_adk_mcp()
 
-            mcp = McpToolset(
+            mcp = McpToolsetCls(
                 connection_params=StreamableHTTPConnectionParams(
                     url=settings.elastic_mcp_url,
                     headers={"Authorization": f"ApiKey {settings.elastic_api_key}"},
@@ -114,7 +104,7 @@ class AgentBuilderService:
 
     async def health_check(self) -> dict[str, Any]:
         if not self.configured:
-            return {"status": "disabled", "reason": "missing adk, gemini, or elastic mcp"}
+            return {"status": "disabled", "reason": self.import_error or "missing adk, gemini, or elastic mcp"}
         return {"status": "ok", "framework": "google-adk", "model": settings.gemini_model}
 
 
