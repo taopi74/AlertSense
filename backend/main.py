@@ -48,13 +48,17 @@ router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
+    import sys
     mode = "demo" if settings.use_demo else "elastic"
+    import_err = getattr(agent_builder_service, "import_error", None)
     return HealthResponse(
         status="ok",
         mode=mode,
         gemini_configured=settings.gemini_configured,
         elastic_configured=settings.elastic_mcp_configured or settings.elasticsearch_configured,
         agent_builder_configured=agent_builder_service.configured,
+        python_version=sys.version,
+        import_error=import_err,
     )
 
 

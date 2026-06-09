@@ -68,6 +68,8 @@ class HealthResponse(BaseModel):
     elastic_configured: bool
     agent_builder_configured: bool = False
     version: str = "1.0.0"
+    python_version: str | None = None
+    import_error: str | None = None
 
 
 class ConfigResponse(BaseModel):
