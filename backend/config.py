@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     elastic_mcp_url: str = ""
     elastic_api_key: str = ""
+    elastic_mcp_tool_name: str = "search_error_logs"
 
     elasticsearch_url: str = ""
     elasticsearch_api_key: str = ""

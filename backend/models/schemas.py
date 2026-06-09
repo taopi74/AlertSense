@@ -66,6 +66,7 @@ class HealthResponse(BaseModel):
     mode: str
     gemini_configured: bool
     elastic_configured: bool
+    agent_builder_configured: bool = False
     version: str = "1.0.0"
 
 
@@ -74,4 +75,5 @@ class ConfigResponse(BaseModel):
     gemini_model: str
     elastic_mcp_configured: bool
     elasticsearch_configured: bool
+    agent_builder_configured: bool = False
     demo_available: bool

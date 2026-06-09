@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 
+from backend.agent.agent_builder import agent_builder_service
 from backend.agent.gemini import gemini_client
 from backend.agent.prompts import ANALYZE_PROMPT, DETECT_PROMPT, FALLBACK_REPORT, RECOMMEND_PROMPT
 from backend.elastic.search import elastic_service
@@ -25,7 +26,7 @@ class AlertSenseAgent:
     async def investigate(self, request: InvestigateRequest) -> InvestigateResponse:
         timeline: list[TimelineEvent] = []
 
-        # Step 1: Detect intent
+        # Step 1: Detect intent (Gemini)
         detection = await self._detect(request.query)
         timeline.append(
             TimelineEvent(
@@ -35,7 +36,7 @@ class AlertSenseAgent:
             )
         )
 
-        # Step 2: Search Elastic logs
+        # Step 2: Search Elastic logs (Elastic MCP primary)
         search_query = self._build_search_query(request.query, detection)
         logs, mode = await elastic_service.search_logs(
             search_query,
@@ -44,22 +45,22 @@ class AlertSenseAgent:
         timeline.append(
             TimelineEvent(
                 step=AgentStep.SEARCH,
-                title="Logs retrieved via Elastic",
+                title="Logs retrieved via Elastic MCP",
                 detail=f"Found {len(logs)} relevant log entries ({mode} mode)",
             )
         )
 
-        # Step 3: Analyze patterns
+        # Step 3: Analyze (Google Cloud Agent Builder + Gemini + Elastic MCP)
         analysis = await self._analyze(request.query, logs)
         timeline.append(
             TimelineEvent(
                 step=AgentStep.ANALYZE,
-                title="Pattern analysis complete",
+                title="Agent Builder analysis complete",
                 detail=analysis[:280] + ("..." if len(analysis) > 280 else ""),
             )
         )
 
-        # Step 4: Recommend actions
+        # Step 4: Recommend (Gemini)
         report = await self._recommend(request.query, logs, analysis)
         timeline.append(
             TimelineEvent(
@@ -95,12 +96,28 @@ class AlertSenseAgent:
         return " ".join(str(p) for p in parts if p)
 
     async def _analyze(self, query: str, logs: list[LogHit]) -> str:
+        log_summary = self._summarize_logs(logs)
+
+        # Google Cloud Agent Builder (ADK + Gemini + Elastic MCP)
+        adk_analysis = await agent_builder_service.analyze_incident(query, log_summary)
+        if adk_analysis:
+            return adk_analysis
+
+        # Gemini fallback
         evidence = json.dumps([log.model_dump() for log in logs[:15]], indent=2)
         user = f"User query: {query}\n\nLog evidence:\n{evidence}"
         text = await gemini_client.generate_text(ANALYZE_PROMPT, user)
         if text:
             return text.strip()
         return self._fallback_analysis(logs)
+
+    def _summarize_logs(self, logs: list[LogHit]) -> str:
+        if not logs:
+            return "No logs found."
+        lines = []
+        for log in logs[:8]:
+            lines.append(f"[{log.level}] {log.service}: {log.message[:120]}")
+        return "\n".join(lines)
 
     def _fallback_analysis(self, logs: list[LogHit]) -> str:
         errors = [l for l in logs if l.level.upper() == "ERROR"]

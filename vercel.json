@@ -11,7 +11,7 @@
       "entrypoint": "api/index.py",
       "routePrefix": "/api",
       "framework": "fastapi",
-      "maxDuration": 60,
+      "maxDuration": 120,
       "memory": 1024
     }
   }

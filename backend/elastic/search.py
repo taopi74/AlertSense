@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
 import httpx
 
 from backend.config import settings
+from backend.elastic.mcp_client import mcp_client
 from backend.elastic.mock_data import search_mock_logs
 from backend.models.schemas import LogHit
 
@@ -23,16 +23,17 @@ class ElasticSearchService:
             hits = self._from_mock(query, limit)
             return hits, "demo"
 
-        # Direct ES first — most reliable for our logs-alertsense index
+        # Elastic MCP first (hackathon partner requirement)
+        if settings.elastic_mcp_configured:
+            hits = await mcp_client.search_error_logs(query, limit=limit)
+            if hits:
+                return hits, "elastic_mcp"
+
+        # Direct ES fallback
         if settings.elasticsearch_configured:
             hits = await self._search_via_es(query, time_window_hours, limit)
             if hits:
                 return hits, "elasticsearch"
-
-        if settings.elastic_mcp_configured:
-            hits = await self._search_via_mcp(query, time_window_hours, limit)
-            if hits:
-                return hits, "elastic_mcp"
 
         hits = self._from_mock(query, limit)
         return hits, "demo_fallback"
@@ -49,74 +50,6 @@ class ElasticSearchService:
             message=str(doc.get("message", doc.get("log.message", ""))),
             trace_id=doc.get("trace_id") or doc.get("trace.id"),
         )
-
-    async def _search_via_mcp(self, query: str, time_window_hours: int, limit: int) -> list[LogHit]:
-        """Call Elastic Agent Builder MCP endpoint (streamable HTTP)."""
-        search_query = (
-            f"{query} level:(ERROR OR WARN) "
-            f"AND @timestamp:[now-{time_window_hours}h TO now]"
-        )
-
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "tools/call",
-            "params": {
-                "name": "search",
-                "arguments": {
-                    "query": search_query,
-                    "size": limit,
-                },
-            },
-        }
-
-        headers = {
-            "Authorization": f"ApiKey {settings.elastic_api_key}",
-            "Content-Type": "application/json",
-        }
-
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    settings.elastic_mcp_url,
-                    headers=headers,
-                    json=payload,
-                )
-                response.raise_for_status()
-                data = response.json()
-                return self._parse_mcp_results(data)
-        except Exception as exc:
-            logger.warning("Elastic MCP search failed: %s", exc)
-            return []
-
-    def _parse_mcp_results(self, data: dict[str, Any]) -> list[LogHit]:
-        hits: list[LogHit] = []
-        result = data.get("result", {})
-        content = result.get("content", [])
-
-        for item in content:
-            text = item.get("text", "")
-            if not text:
-                continue
-            try:
-                parsed = json.loads(text)
-                if isinstance(parsed, list):
-                    for doc in parsed:
-                        hits.append(self._to_log_hit(doc))
-                elif isinstance(parsed, dict):
-                    for hit in parsed.get("hits", parsed.get("documents", [])):
-                        source = hit.get("_source", hit)
-                        hits.append(self._to_log_hit(source))
-            except json.JSONDecodeError:
-                hits.append(
-                    LogHit(
-                        timestamp="",
-                        service="elastic",
-                        level="INFO",
-                        message=text[:500],
-                    )
-                )
-        return hits
 
     async def _search_via_es(self, query: str, time_window_hours: int, limit: int) -> list[LogHit]:
         """Direct Elasticsearch query against logs-alertsense index."""

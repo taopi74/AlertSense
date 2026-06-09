@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.agent.agent_builder import agent_builder_service
 from backend.agent.orchestrator import agent
 from backend.config import settings
 from backend.models.schemas import (
@@ -53,6 +54,7 @@ async def health() -> HealthResponse:
         mode=mode,
         gemini_configured=settings.gemini_configured,
         elastic_configured=settings.elastic_mcp_configured or settings.elasticsearch_configured,
+        agent_builder_configured=agent_builder_service.configured,
     )
 
 
@@ -63,6 +65,7 @@ async def config() -> ConfigResponse:
         gemini_model=settings.gemini_model,
         elastic_mcp_configured=settings.elastic_mcp_configured,
         elasticsearch_configured=settings.elasticsearch_configured,
+        agent_builder_configured=agent_builder_service.configured,
         demo_available=True,
     )
 

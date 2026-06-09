@@ -96,13 +96,39 @@ curl -X POST http://localhost:8080/api/investigate \
 
 ## Hackathon submission
 
-| Item | Status |
-|------|--------|
-| Hosted project URL | Deploy to Cloud Run |
-| Public GitHub repo | This repo + MIT LICENSE |
-| ~3 min demo video | See `docs/DEMO_SCRIPT.md` |
+| Requirement | Status |
+|-------------|--------|
+| **Gemini** (runtime) | `backend/agent/gemini.py` — Google Generative AI |
+| **Google Cloud Agent Builder** (runtime) | `backend/agent/agent_builder.py` — Google ADK agent |
+| **Elastic MCP** (runtime) | `backend/elastic/mcp_client.py` — `search_error_logs` tool |
+| Hosted URL | https://alert-sense.vercel.app |
+| Public GitHub | https://github.com/taopi74/AlertSense (MIT LICENSE) |
 | Partner track | **Elastic** |
-| Gemini + Agent Builder | See `docs/AGENT_BUILDER.md` |
+| Demo video | YouTube (public, under 3 min) |
+
+### Runtime stack (judges)
+
+Every `/api/investigate` call invokes all three:
+
+1. **Detect** — Gemini API
+2. **Search** — Elastic Agent Builder MCP (`search_error_logs`)
+3. **Analyze** — Google ADK Agent (Gemini + Elastic MCP tools)
+4. **Recommend** — Gemini API
+
+### Vercel environment variables
+
+Set all of these in Vercel Dashboard → Settings → Environment Variables:
+
+```
+GOOGLE_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+ELASTIC_MCP_URL=
+ELASTIC_API_KEY=
+ELASTIC_MCP_TOOL_NAME=search_error_logs
+ELASTICSEARCH_URL=
+ELASTICSEARCH_API_KEY=
+DEMO_MODE=false
+```
 
 ## Judging alignment
 
