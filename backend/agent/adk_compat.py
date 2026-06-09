@@ -32,6 +32,7 @@ def load_adk_mcp() -> tuple[Any, Any, Any, Any, Any, Any]:
 
 def check_adk_available() -> tuple[bool, str | None]:
     try:
+        import google.adk  # noqa: F401 — ensure package loads on Vercel
         load_adk_mcp()
         return True, None
     except Exception as exc:
